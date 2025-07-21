@@ -7,6 +7,7 @@ import {
   setDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 export const addParent = async ({
@@ -78,4 +79,14 @@ export const updateMedication = async (
     medicationId
   );
   await updateDoc(ref, data);
+};
+
+
+export const deleteMedication = async (
+  caregiverId: string,
+  personId: string,
+  medicationId: string
+) => {
+  const ref = doc(db, "caregivers", caregiverId, "people", personId, "medications", medicationId);
+  await deleteDoc(ref);
 };

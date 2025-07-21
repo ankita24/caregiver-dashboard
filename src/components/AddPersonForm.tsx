@@ -18,7 +18,15 @@ interface Person {
   timezone: string;
 }
 
-export default function AddPersonForm({ person }: { person: Person | null }) {
+export default function AddPersonForm({
+  person,
+  onSuccess,
+  onClose,
+}: {
+  person?: Person | undefined;
+  onSuccess: () => void;
+  onClose: () => void;
+}) {
   const { currentUser } = useAuth();
   const [name, setName] = useState(person?.name ?? "");
   const [phone, setPhone] = useState(person?.phone ?? "");
@@ -50,6 +58,8 @@ export default function AddPersonForm({ person }: { person: Person | null }) {
       setName("");
       setPhone("");
       setTimezone("Asia/Kolkata");
+      onSuccess();
+      onClose();
       alert(`Person ${person?.id ? "saved" : "added"} successfully!`);
     } catch (error) {
       console.error(error);

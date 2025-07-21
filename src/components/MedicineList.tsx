@@ -1,5 +1,5 @@
 // components/MedicationList.tsx
-import React from 'react';
+
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -8,7 +8,7 @@ import {
   orderBy,
   DocumentData,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../firebase.js";
 import {
   List,
   ListItem,
@@ -17,7 +17,13 @@ import {
   Chip,
   Stack,
   Divider,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
+import AddMedicationForm from "./AddMedicationForm.js";
+import { deleteMedication, getParents } from "../services/firestore.js";
 
 interface Medication {
   id: string;
@@ -36,11 +42,21 @@ export default function MedicationList({
   personId: string;
 }) {
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [medicationDialogOpen, setMedicationDialogOpen] = useState(false);
+  const [selectedMedication, setSelectedMedication] =
+    useState<Medication | null>(null);
 
   useEffect(() => {
     const fetchMedications = async () => {
       const q = query(
-        collection(db, "caregivers", caregiverId, "people", personId, "medications"),
+        collection(
+          db,
+          "caregivers",
+          caregiverId,
+          "people",
+          personId,
+          "medications"
+        ),
         orderBy("createdAt", "desc")
       );
 
@@ -68,7 +84,7 @@ export default function MedicationList({
     <List dense sx={{ mt: 2 }}>
       {medications.map((med) => (
         <div key={med.id}>
-          <ListItem alignItems="flex-start" style={{paddingLeft:0}}>
+          <ListItem alignItems="flex-start" style={{ paddingLeft: 0 }}>
             <ListItemText
               primary={
                 <Typography fontWeight="bold">
@@ -77,7 +93,11 @@ export default function MedicationList({
               }
               secondary={
                 <>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: "wrap" }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ mt: 0.5, flexWrap: "wrap" }}
+                  >
                     {med.times.map((t, i) => (
                       <Chip key={i} label={`⏰ ${t}`} size="small" />
                     ))}
@@ -90,9 +110,52 @@ export default function MedicationList({
               }
             />
           </ListItem>
+          <Button
+            size="small"
+            onClick={() => {
+              setSelectedMedication(med); // Pass the selected medication
+              setMedicationDialogOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            color="error"
+            onClick={async () => {
+              if (confirm("Are you sure you want to delete this medication?")) {
+                await deleteMedication(caregiverId, personId, med.id);
+                await getParents(caregiverId); // Refresh the list after deletion
+              }
+            }}
+          >
+            Delete
+          </Button>
           <Divider component="li" />
         </div>
       ))}
+      {medicationDialogOpen && (
+        <Dialog
+          open={medicationDialogOpen}
+          onClose={() => setMedicationDialogOpen(false)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Edit Medication for {personId}</DialogTitle>
+          <DialogContent>
+            <AddMedicationForm
+              personId={personId}
+              caregiverId={caregiverId}
+              medication={selectedMedication || undefined}
+              onClose={() => {
+                setMedicationDialogOpen(false);
+                setSelectedMedication(null);
+              }}
+              onSuccess={() => getParents(caregiverId)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </List>
   );
 }

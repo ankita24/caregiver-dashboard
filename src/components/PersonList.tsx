@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import AddMedicationForm from "./AddMedicationForm.js";
 import MedicationList from "./MedicineList.js";
-import AddParentForm from "./AddPersonForm.js";
 import AddPersonForm from "./AddPersonForm.js";
 
 interface Person {
@@ -32,15 +31,14 @@ export default function PersonList() {
   const [open, setOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [openEditDialog, setOpenEditDialog] = useState<Person | null>(null);
+  const fetchPeople = async () => {
+    if (!currentUser) return;
+    const data = await getParents(currentUser.uid); // Later rename to getPeople
+    setPeople(data as Person[]);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchPeople = async () => {
-      if (!currentUser) return;
-      const data = await getParents(currentUser.uid); // Later rename to getPeople
-      setPeople(data as Person[]);
-      setLoading(false);
-    };
-
     fetchPeople();
   }, [currentUser]);
 
@@ -89,10 +87,11 @@ export default function PersonList() {
         >
           <DialogTitle>Add Medication for {selectedPerson.name}</DialogTitle>
           <DialogContent>
-            <AddMedicationForm
+            <AddMedicationForm 
               personId={selectedPerson.id}
               caregiverId={currentUser.uid}
               onClose={() => setOpen(false)}
+              onSuccess={() => fetchPeople()}
             />
           </DialogContent>
         </Dialog>

@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { Timestamp, collection, addDoc } from "firebase/firestore";
 import { db } from "../firebase.js";
+import { updateMedication } from "../services/firestore.js";
 
 const NOTIFY_METHODS = ["sms", "call", "push"];
 
@@ -18,17 +19,27 @@ export default function AddMedicationForm({
   personId,
   caregiverId,
   onClose,
+  onSuccess,medication
 }: {
   personId: string;
   caregiverId: string;
   onClose?: () => void;
+  onSuccess?:()=>void
+  medication?: {
+    id: string;
+    name: string;
+    dosage: string;
+    times: string[];
+    alertAfterMinutes: number;
+    notifyMethod: string;
+  };
 }) {
-  const [name, setName] = useState("");
-  const [dosage, setDosage] = useState("");
-  const [time, setTime] = useState("");
-  const [times, setTimes] = useState<string[]>([]);
-  const [alertAfter, setAlertAfter] = useState("30"); // minutes
-  const [notifyMethod, setNotifyMethod] = useState("sms");
+  const [name, setName] = useState(medication?.name ?? '');
+  const [dosage, setDosage] = useState(medication?.dosage ?? '');
+  const [time, setTime] = useState(medication?.times?.join(', ') || '');
+  const [times, setTimes] = useState<string[]>(medication?.times ?? []);
+  const [alertAfter, setAlertAfter] = useState(medication?.alertAfterMinutes || 30); // minutes
+  const [notifyMethod, setNotifyMethod] = useState(medication?.notifyMethod || 'sms');
 
   const handleAddTime = () => {
     if (time && !times.includes(time)) {
@@ -42,32 +53,42 @@ export default function AddMedicationForm({
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-
     e.preventDefault();
     if (!name || !dosage || times.length === 0) return;
-
+  
     try {
-      await addDoc(
-        collection(
-          db,
-          "caregivers",
+      const data = {
+        name,
+        dosage,
+        times,
+        alertAfterMinutes: alertAfter,
+        notifyMethod,
+        updatedAt: Timestamp.now(),
+      };
+  
+      if (medication?.id) {
+        // Edit Mode
+        await updateMedication(
           caregiverId,
-          "people",
           personId,
-          "medications"
-        ),
-        {
-          name,
-          dosage,
-          times,
-          alertAfterMinutes: parseInt(alertAfter),
-          notifyMethod,
-          createdAt: Timestamp.now(),
-        }
-      );
+          medication.id,
+          data
+        );
+      } else {
+        // Add Mode
+        await addDoc(
+          collection(db, "caregivers", caregiverId, "people", personId, "medications"),
+          {
+            ...data,
+            createdAt: Timestamp.now(),
+          }
+        );
+      }
+  
+      onSuccess?.();
       onClose?.();
     } catch (error) {
-      console.error("Error adding medication:", error);
+      console.error("Error saving medication:", error);
     }
   };
 
@@ -113,7 +134,7 @@ export default function AddMedicationForm({
         label="Alert After (minutes)"
         value={alertAfter}
         type="number"
-        onChange={(e) => setAlertAfter(e.target.value)}
+        onChange={(e) => setAlertAfter(Number(e.target.value))}
         fullWidth
         required
         margin="normal"
